@@ -8,6 +8,9 @@ import os
 
 from flask import Flask
 
+# Import psycopg2 to ensure PostgreSQL dialect is loaded
+import psycopg2
+
 from src.config import AEP_CONFIG_MAP
 from src.extensions import db, login_manager, migrate
 

@@ -22,7 +22,7 @@ class AEPDevelopmentConfig(AEPConfig):
 
     DEBUG: bool = True
     SQLALCHEMY_DATABASE_URI: str = os.environ.get(
-        "DATABASE_URL", "postgres://zurichk:6L6tLGZmdRYlZln3UPQJm9ggPVfvAW5N7iCIR5Wlk@78.47.111.58:5433/postgres?sslmode=require"
+        "DATABASE_URL", "sqlite:///aep_solar.db"
     )
 
 
@@ -30,9 +30,7 @@ class AEPProductionConfig(AEPConfig):
     """Configuración para entorno de producción."""
 
     DEBUG: bool = False
-    SQLALCHEMY_DATABASE_URI: str = os.environ.get(
-        "DATABASE_URL", "postgres://zurichk:6L6tLGZmdRYlZln3UPQJm9ggPVfvAW5N7iCIR5Wlk@ucgkoo04kk4w0sg4ow8ckk4k:5432/postgres?sslmode=require"
-    )
+    SQLALCHEMY_DATABASE_URI: str = os.environ.get("DATABASE_URL")
 
 
 class AEPTestingConfig(AEPConfig):
