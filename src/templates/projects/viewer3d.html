@@ -1,0 +1,409 @@
+{% extends "base.html" %}
+
+{% block title %}Visor 3D — {{ project.name }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    body {
+        margin: 0;
+        padding: 0;
+        background: #1a1a2e;
+        overflow: hidden;
+    }
+
+    #viewer3D {
+        width: 100vw;
+        height: 100vh;
+    }
+
+    .viewer-toolbar {
+        position: fixed;
+        top: 10px;
+        right: 10px;
+        z-index: 9999;
+        background: rgba(0, 0, 0, 0.8);
+        padding: 10px;
+        border-radius: 5px;
+    }
+
+    .viewer-legend {
+        position: fixed;
+        top: 10px;
+        left: 10px;
+        z-index: 9999;
+        background: rgba(0, 0, 0, 0.8);
+        color: #ecf0f1;
+        padding: 10px 12px;
+        border-radius: 6px;
+        font-size: 12px;
+        min-width: 180px;
+    }
+
+    .viewer-legend__title {
+        font-weight: 600;
+        color: #f1c40f;
+        margin-bottom: 6px;
+    }
+
+    .viewer-legend__row {
+        display: flex;
+        justify-content: space-between;
+        gap: 10px;
+        margin-bottom: 4px;
+    }
+
+    .viewer-controls {
+        position: absolute;
+        bottom: 20px;
+        left: 20px;
+        z-index: 1000;
+        display: flex;
+        gap: 5px;
+    }
+
+    .viewer-controls button {
+        width: 50px;
+        height: 50px;
+        background: rgba(0, 0, 0, 0.7);
+        color: #ecf0f1;
+        border: 2px solid #ecf0f1;
+        border-radius: 8px;
+        font-size: 20px;
+        font-weight: bold;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: background 0.2s;
+    }
+
+    .viewer-controls button:hover {
+        background: rgba(255, 255, 255, 0.2);
+        border-color: #f1c40f;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="viewer-toolbar">
+    <button class="btn btn-sm btn-outline-light" onclick="window.close()" title="Cerrar">
+        <i class="bi bi-x"></i> Cerrar
+    </button>
+    <button class="btn btn-sm btn-outline-light" id="btnExport3D" title="Exportar imagen 3D">
+        <i class="bi bi-download"></i> Exportar
+    </button>
+</div>
+
+<div class="viewer-legend">
+    <div class="viewer-legend__title">Teclas</div>
+    <div class="viewer-legend__row"><span>Flechas</span><span>Mover vista</span></div>
+    <div class="viewer-legend__row"><span>Ctrl + Flechas</span><span>Rotar</span></div>
+    <div class="viewer-legend__row"><span>Rueda mouse</span><span>Zoom</span></div>
+    <div class="viewer-legend__row"><span>Shift</span><span>Mas rapido</span></div>
+</div>
+
+<div class="viewer-controls">
+    <button id="panLeft">←</button>
+    <button id="panUp">↑</button>
+    <button id="panDown">↓</button>
+    <button id="panRight">→</button>
+    <button id="rotateLeft">↺</button>
+    <button id="rotateRight">↻</button>
+    <button id="zoomIn">+</button>
+    <button id="zoomOut">-</button>
+</div>
+
+<canvas id="viewer3D" tabindex="0"></canvas>
+{% endblock %}
+
+{% block extra_js %}
+<!-- Three.js local -->
+<script src="{{ url_for('static', filename='lib/three.min.js') }}"></script>
+<script>
+    // Simple OrbitControls implementation
+    THREE.OrbitControls = function (object, domElement) {
+        this.object = object;
+        this.domElement = domElement || document;
+
+        this.enabled = true;
+        this.enableDamping = true;
+        this.dampingFactor = 0.05;
+
+        this.rotateSpeed = 1.0;
+        this.zoomSpeed = 1.2;
+        this.panSpeed = 0.8;
+
+        this.minDistance = 0;
+        this.maxDistance = Infinity;
+
+        this.target = new THREE.Vector3();
+
+        this.update = function () {
+            // Simple damping
+            if (this.enableDamping) {
+                this.object.position.lerp(this.targetPosition || this.object.position, this.dampingFactor);
+            }
+            return true;
+        };
+
+        // Basic mouse controls
+        const scope = this;
+        let isMouseDown = false;
+        let mouseX = 0, mouseY = 0;
+
+        function onMouseDown(event) {
+            if (!scope.enabled) return;
+            isMouseDown = true;
+            mouseX = event.clientX;
+            mouseY = event.clientY;
+        }
+
+        function onMouseMove(event) {
+            if (!isMouseDown || !scope.enabled) return;
+            const deltaX = event.clientX - mouseX;
+            const deltaY = event.clientY - mouseY;
+
+            // Simple rotation
+            scope.object.rotation.y -= deltaX * 0.01;
+            scope.object.rotation.x -= deltaY * 0.01;
+
+            mouseX = event.clientX;
+            mouseY = event.clientY;
+        }
+
+        function onMouseUp() {
+            isMouseDown = false;
+        }
+
+        function onWheel(event) {
+            if (!scope.enabled) return;
+            event.preventDefault();
+            const zoomSpeed = 0.1;
+            const distance = scope.object.position.distanceTo(scope.target);
+            const newDistance = distance * (1 + event.deltaY * zoomSpeed * 0.001);
+            scope.object.position.normalize().multiplyScalar(newDistance);
+        }
+
+        this.domElement.addEventListener('mousedown', onMouseDown);
+        this.domElement.addEventListener('mousemove', onMouseMove);
+        this.domElement.addEventListener('mouseup', onMouseUp);
+        this.domElement.addEventListener('wheel', onWheel);
+    };
+</script>
+<script src="{{ url_for('static', filename='js/editor3d.js') }}"></script>
+
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const canvas = document.getElementById('viewer3D');
+        const viewer3D = new AEPEditor3D(canvas);
+        let lastPayload = null;
+        let structConfig = {};
+        let panelConfig = {};
+
+        const buildExportProperties = () => {
+            const data = lastPayload?.data || {};
+            const panels = data.panels || [];
+            const beams = data.beams || [];
+
+            const beamMeters = beams.reduce((sum, b) => {
+                const dx = (b.x2 - b.x1) || 0;
+                const dy = (b.y2 - b.y1) || 0;
+                return sum + Math.sqrt(dx * dx + dy * dy);
+            }, 0) / 100;
+
+            const totalPower = panels.length * (panelConfig.power_w || 0);
+
+            // Calcular ancho y alto de la terraza de los vértices
+            const vertices = data.terraceVertices || [];
+            let terraceWidth = '';
+            let terraceHeight = '';
+            if (vertices.length > 0) {
+                const xs = vertices.map(v => v.x);
+                const ys = vertices.map(v => v.y);
+                const minX = Math.min(...xs);
+                const maxX = Math.max(...xs);
+                const minY = Math.min(...ys);
+                const maxY = Math.max(...ys);
+                terraceWidth = (maxX - minX).toFixed(0);
+                terraceHeight = (maxY - minY).toFixed(0);
+            }
+
+            return {
+                terrace: {
+                    width: terraceWidth,
+                    height: terraceHeight,
+                    vertices: vertices.length,
+                },
+                structure: {
+                    material: structConfig.material || '',
+                    profile: structConfig.profile || '',
+                    height: structConfig.height_cm || '',
+                    inclination: structConfig.beam_inclination_deg || '',
+                    startBeam: structConfig.inclination_start_beam,
+                    endBeam: structConfig.inclination_end_beam,
+                    showLabels: structConfig.show_post_labels ? 'Sí' : 'No',
+                    beamCount: beams.length,
+                    beamMeters: beamMeters ? beamMeters.toFixed(2) : '',
+                },
+                panels: {
+                    width: panelConfig.width_cm || '',
+                    height: panelConfig.height_cm || '',
+                    inclination: panelConfig.inclination_deg ?? '',
+                    power: panelConfig.power_w || '',
+                    count: panels.length,
+                    totalPower: totalPower ? totalPower.toFixed(0) : '',
+                },
+            };
+        };
+
+        // Recibir datos de la ventana padre
+        window.addEventListener('message', (event) => {
+            if (event.data.type === 'load3DData') {
+                console.log('3D Viewer: received data', event.data);
+                lastPayload = event.data;
+                structConfig = event.data.structConfig || {};
+                panelConfig = event.data.panelConfig || {};
+                viewer3D.updateScene(event.data.data, event.data.structConfig);
+                viewer3D.start();
+                canvas.focus();
+            } else if (event.data.type === 'updateStructConfig') {
+                structConfig = event.data.structConfig || {};
+                viewer3D.updateScene(lastPayload.data, structConfig);
+            } else if (event.data.type === 'updatePanelConfig') {
+                panelConfig = event.data.panelConfig || {};
+            }
+        });
+
+        // Configurar callback para selección de vigas
+        viewer3D.onBeamSelectionChange = (selectedBeams) => {
+            // Convertir Set a Array y ordenar
+            const selectedArray = Array.from(selectedBeams).sort((a, b) => a - b);
+
+            if (selectedArray.length >= 2) {
+                // Si hay al menos 2 vigas seleccionadas, usar la primera y última como rango
+                const startBeam = selectedArray[0];
+                const endBeam = selectedArray[selectedArray.length - 1];
+
+                // Enviar mensaje a la ventana padre para actualizar los campos
+                if (window.opener) {
+                    window.opener.postMessage({
+                        type: 'beamSelectionChanged',
+                        startBeam: startBeam,
+                        endBeam: endBeam
+                    }, window.location.origin);
+                }
+            } else if (selectedArray.length === 1) {
+                // Si solo hay una viga seleccionada, usarla como inicio y fin
+                const beamIndex = selectedArray[0];
+                if (window.opener) {
+                    window.opener.postMessage({
+                        type: 'beamSelectionChanged',
+                        startBeam: beamIndex,
+                        endBeam: beamIndex
+                    }, window.location.origin);
+                }
+            }
+        };
+
+        // Notificar que está listo
+        if (window.opener) {
+            window.opener.postMessage({ type: 'viewer3DReady' }, '*');
+        }
+
+        // Botón de exportar
+        document.getElementById('btnExport3D').addEventListener('click', () => {
+            const properties = buildExportProperties();
+
+            // Usar la función exportImage del viewer3D si existe
+            if (viewer3D.exportImage) {
+                const dataURL = viewer3D.exportImage(properties);
+                const link = document.createElement('a');
+                link.download = 'vista_3d.png';
+                link.href = dataURL;
+                link.click();
+            }
+        });
+
+        const panCamera = (dx, dy, dz) => {
+            if (!viewer3D.camera) return;
+            const delta = new THREE.Vector3(dx, dy, dz);
+            viewer3D.camera.position.add(delta);
+            if (viewer3D.controls && viewer3D.controls.target) {
+                viewer3D.controls.target.add(delta);
+            }
+        };
+
+        const rotateCamera = (azimuth, polar) => {
+            if (!viewer3D.camera) return;
+            const target = viewer3D.controls?.target || new THREE.Vector3();
+            const offset = viewer3D.camera.position.clone().sub(target);
+            const radius = offset.length();
+            if (radius === 0) return;
+
+            let theta = Math.atan2(offset.x, offset.z);
+            let phi = Math.acos(Math.min(Math.max(offset.y / radius, -1), 1));
+
+            theta += azimuth;
+            phi = Math.min(Math.max(phi + polar, 0.1), Math.PI - 0.1);
+
+            const sinPhi = Math.sin(phi);
+            const newOffset = new THREE.Vector3(
+                radius * sinPhi * Math.sin(theta),
+                radius * Math.cos(phi),
+                radius * sinPhi * Math.cos(theta)
+            );
+
+            viewer3D.camera.position.copy(target.clone().add(newOffset));
+            viewer3D.camera.lookAt(target);
+        };
+
+        const zoomCamera = (factor) => {
+            if (!viewer3D.camera || !viewer3D.controls) return;
+            const target = viewer3D.controls.target;
+            const offset = viewer3D.camera.position.clone().sub(target);
+            const newOffset = offset.multiplyScalar(factor);
+            viewer3D.camera.position.copy(target.clone().add(newOffset));
+        };
+
+        // Enfocar el canvas para controles de teclado
+        canvas.focus();
+        canvas.addEventListener('click', () => canvas.focus());
+
+        // Controles de teclado en el canvas
+        canvas.addEventListener('keydown', (event) => {
+            if (!viewer3D.camera) return;
+            const step = event.shiftKey ? 40 : 20;
+            const rotateStep = event.shiftKey ? 0.12 : 0.06;
+
+            if (event.ctrlKey && ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(event.key)) {
+                event.preventDefault();
+                const azimuth = event.key === 'ArrowLeft' ? -rotateStep :
+                    event.key === 'ArrowRight' ? rotateStep : 0;
+                const polar = event.key === 'ArrowUp' ? -rotateStep :
+                    event.key === 'ArrowDown' ? rotateStep : 0;
+                rotateCamera(azimuth, polar);
+                return;
+            }
+
+            if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(event.key)) {
+                event.preventDefault();
+                const dx = event.key === 'ArrowLeft' ? -step :
+                    event.key === 'ArrowRight' ? step : 0;
+                const dz = event.key === 'ArrowUp' ? -step :
+                    event.key === 'ArrowDown' ? step : 0;
+                panCamera(dx, 0, dz);
+            }
+        });
+
+        // Botones de control
+        document.getElementById('panUp').addEventListener('click', () => panCamera(0, 0, -20));
+        document.getElementById('panDown').addEventListener('click', () => panCamera(0, 0, 20));
+        document.getElementById('panLeft').addEventListener('click', () => panCamera(-20, 0, 0));
+        document.getElementById('panRight').addEventListener('click', () => panCamera(20, 0, 0));
+        document.getElementById('rotateLeft').addEventListener('click', () => rotateCamera(-0.06, 0));
+        document.getElementById('rotateRight').addEventListener('click', () => rotateCamera(0.06, 0));
+        document.getElementById('zoomIn').addEventListener('click', () => zoomCamera(0.9));
+        document.getElementById('zoomOut').addEventListener('click', () => zoomCamera(1.1));
+    });
+</script>
+{% endblock %}

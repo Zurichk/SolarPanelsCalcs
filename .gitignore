@@ -1,0 +1,61 @@
+# ============================================
+# AEP Solar Panel Planner — .gitignore
+# ============================================
+
+# ----- Entorno Virtual -----
+Lib/
+Include/
+Scripts/
+pyvenv.cfg
+share/
+
+# ----- Python -----
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+dist/
+build/
+*.egg
+
+# ----- Flask / Instancia -----
+instance/
+*.db
+*.sqlite3
+
+# ----- Variables de Entorno -----
+.env
+.env.*
+!.env.example
+
+# ----- IDE -----
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# ----- OS -----
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ----- Docker -----
+docker-compose.override.yml
+
+# ----- Logs -----
+*.log
+logs/
+
+# ----- Coverage / Tests -----
+htmlcov/
+.coverage
+.pytest_cache/
+.mypy_cache/
+
+# ----- Node (si se usa para frontend) -----
+node_modules/
+
+
+src/docs

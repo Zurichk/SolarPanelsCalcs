@@ -1,0 +1,435 @@
+{% extends "base.html" %}
+
+{% block title %}Editor — {{ project.name }}{% endblock %}
+
+{% block extra_css %}
+<link href="{{ url_for('static', filename='css/editor.css') }}" rel="stylesheet">
+{% endblock %}
+
+{% block content %}
+<div class="editor-container" id="editorApp" data-project-id="{{ project.id }}"
+    data-terrace-id="{{ terrace.id if terrace else '' }}" data-structure-id="{{ structure.id if structure else '' }}">
+
+    <!-- Toolbar superior -->
+    <div class="editor-toolbar bg-dark text-light px-3 py-2 d-flex align-items-center gap-2">
+        <a href="{{ url_for('projects.list_projects') }}" class="btn btn-sm btn-outline-light">
+            <i class="bi bi-arrow-left"></i>
+        </a>
+        <h6 class="mb-0 me-3">
+            <i class="bi bi-sun-fill text-warning"></i> {{ project.name }}
+        </h6>
+
+        <!-- Herramientas de dibujo -->
+        <div class="btn-group" role="group">
+            <button class="btn btn-sm btn-outline-warning tool-btn active" data-tool="select" title="Seleccionar">
+                <i class="bi bi-cursor"></i>
+            </button>
+            <button class="btn btn-sm btn-outline-warning tool-btn" data-tool="select-area" title="Seleccionar en área">
+                <i class="bi bi-bounding-box"></i>
+            </button>
+            <button class="btn btn-sm btn-outline-warning tool-btn" data-tool="draw-terrace"
+                title="Dibujar terraza (clic para vértices, confirmar con botón)">
+                <i class="bi bi-pentagon"></i>
+            </button>
+            <button class="btn btn-sm btn-outline-warning tool-btn" data-tool="add-obstacle"
+                title="Agregar obstáculo (columna)">
+                <i class="bi bi-square"></i>
+            </button>
+            <button class="btn btn-sm btn-outline-warning tool-btn" data-tool="add-beam" title="Agregar viga">
+                <i class="bi bi-slash-lg"></i>
+            </button>
+            <button class="btn btn-sm btn-outline-warning tool-btn" data-tool="create-structure"
+                title="Crear estructura automática">
+                <i class="bi bi-grid-3x2"></i>
+            </button>
+            <button class="btn btn-sm btn-outline-warning tool-btn" data-tool="select-structure"
+                title="Seleccionar estructura completa">
+                <i class="bi bi-bounding-box-circles"></i>
+            </button>
+            <button class="btn btn-sm btn-outline-warning tool-btn" data-tool="place-panel" title="Colocar panel solar">
+                <i class="bi bi-grid-3x3-gap-fill"></i>
+            </button>
+            <button class="btn btn-sm btn-outline-warning tool-btn" data-tool="add-text" title="Agregar texto">
+                <i class="bi bi-fonts"></i>
+            </button>
+        </div>
+
+        <div class="vr mx-2"></div>
+
+        <!-- Escala -->
+        <div class="d-flex align-items-center gap-1">
+            <label class="form-label mb-0 small">Escala:</label>
+            <select id="scaleSelect" class="form-select form-select-sm" style="width: auto;">
+                <option value="2">1:50 (2px/cm)</option>
+                <option value="4" selected>1:25 (4px/cm)</option>
+                <option value="8">1:12.5 (8px/cm)</option>
+                <option value="10">1:10 (10px/cm)</option>
+            </select>
+        </div>
+
+        <div class="vr mx-2"></div>
+
+        <!-- Acciones -->
+        <button class="btn btn-sm btn-outline-info" id="btnToggle3D" title="Ver en 3D">
+            <i class="bi bi-box"></i> 3D
+        </button>
+        <button class="btn btn-sm btn-outline-success" id="btnSave" title="Guardar diseño">
+            <i class="bi bi-save"></i> Guardar
+        </button>
+        <button class="btn btn-sm btn-outline-light" id="btnExport" title="Exportar imagen">
+            <i class="bi bi-download"></i> Exportar
+        </button>
+        <button class="btn btn-sm btn-outline-primary" id="btnExportJSON" title="Exportar diseño JSON">
+            <i class="bi bi-file-earmark-arrow-down"></i> Exportar JSON
+        </button>
+        <button class="btn btn-sm btn-outline-secondary" id="btnImportJSON" title="Importar diseño JSON">
+            <i class="bi bi-file-earmark-arrow-up"></i> Importar JSON
+        </button>
+
+        <!-- Input oculto para importar JSON -->
+        <input type="file" id="importFile" accept=".json" style="display: none;">
+
+        <!-- Coordenadas del ratón -->
+        <span class="ms-auto small text-muted" id="mouseCoords">X: 0 cm · Y: 0 cm</span>
+    </div>
+
+    <!-- Contenido principal: canvas 2D + panel lateral -->
+    <div class="editor-body d-flex">
+        <!-- Panel lateral izquierdo -->
+        <div class="editor-sidebar bg-light border-end p-3" id="sidebarPanel">
+            <h6 class="fw-bold mb-3">
+                <i class="bi bi-sliders"></i> Propiedades
+            </h6>
+
+            <!-- Terraza -->
+            <div class="accordion" id="propsAccordion">
+                <div class="accordion-item">
+                    <h2 class="accordion-header">
+                        <button class="accordion-button" type="button" data-bs-toggle="collapse"
+                            data-bs-target="#colTerrace">
+                            <i class="bi bi-bounding-box me-2"></i> Terraza
+                        </button>
+                    </h2>
+                    <div id="colTerrace" class="accordion-collapse collapse show">
+                        <div class="accordion-body small">
+                            <div class="mb-2">
+                                <label class="form-label mb-0">Ancho (cm)</label>
+                                <input type="number" class="form-control form-control-sm" id="terraceWidth"
+                                    value="{{ terrace.width_cm if terrace else 585 }}" min="50" step="1">
+                            </div>
+                            <div class="mb-2">
+                                <label class="form-label mb-0">Alto (cm)</label>
+                                <input type="number" class="form-control form-control-sm" id="terraceHeight"
+                                    value="{{ terrace.height_cm if terrace else 388 }}" min="50" step="1">
+                            </div>
+                            <button class="btn btn-sm btn-outline-primary w-100" id="btnApplyTerraceSize">
+                                Aplicar rectángulo
+                            </button>
+                            <p class="text-muted small mt-2">O dibuja forma libre: selecciona herramienta, clic para
+                                vértices, confirma abajo.</p>
+                            <hr>
+                            <p class="text-muted mb-1">Vértices: <span id="vertexCount">0</span></p>
+                            <button class="btn btn-sm btn-outline-success w-100 mb-2" id="btnConfirmTerrace"
+                                style="display: none;">
+                                <i class="bi bi-check-circle"></i> Confirmar dibujo
+                            </button>
+                            <button class="btn btn-sm btn-outline-danger w-100" id="btnClearTerrace">
+                                <i class="bi bi-trash"></i> Limpiar terraza
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Estructura -->
+                <div class="accordion-item">
+                    <h2 class="accordion-header">
+                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
+                            data-bs-target="#colStructure">
+                            <i class="bi bi-building me-2"></i> Estructura
+                        </button>
+                    </h2>
+                    <div id="colStructure" class="accordion-collapse collapse">
+                        <div class="accordion-body small">
+                            <div class="mb-2">
+                                <label class="form-label mb-0">Material</label>
+                                <select id="structMaterial" class="form-select form-select-sm">
+                                    <option value="Acero S275" selected>Acero S275</option>
+                                    <option value="Acero S355">Acero S355</option>
+                                    <option value="Aluminio 6061">Aluminio 6061</option>
+                                </select>
+                            </div>
+                            <div class="mb-2">
+                                <label class="form-label mb-0">Perfil de viga</label>
+                                <select id="beamProfile" class="form-select form-select-sm">
+                                    <option value="IPN-80">IPN-80</option>
+                                    <option value="IPN-100">IPN-100</option>
+                                    <option value="IPN-120">IPN-120</option>
+                                    <option value="IPE-80">IPE-80</option>
+                                    <option value="IPE-100">IPE-100</option>
+                                    <option value="Tubo 40x40">Tubo 40x40</option>
+                                    <option value="Tubo 50x50">Tubo 50x50</option>
+                                    <option value="Tubo 60x40">Tubo 60x40</option>
+                                </select>
+                            </div>
+                            <div class="mb-2">
+                                <label class="form-label mb-0">Altura estructura (cm)</label>
+                                <input type="number" class="form-control form-control-sm" id="structHeight" value="120"
+                                    min="50" step="10">
+                            </div>
+                            <div class="mb-2">
+                                <label class="form-label mb-0">Inclinación estructura (°)</label>
+                                <input type="number" class="form-control form-control-sm" id="beamInclination"
+                                    value="20" min="0" max="90" step="1">
+                            </div>
+                            <div class="mb-2">
+                                <label class="form-label mb-0">Viga inicial (0-based)</label>
+                                <input type="number" class="form-control form-control-sm" id="inclinationStartBeam"
+                                    value="0" min="0" step="1">
+                            </div>
+                            <div class="mb-2">
+                                <label class="form-label mb-0">Viga final (-1 = todas)</label>
+                                <input type="number" class="form-control form-control-sm" id="inclinationEndBeam"
+                                    value="-1" min="-1" step="1">
+                            </div>
+                            <div class="form-check mb-2">
+                                <input class="form-check-input" type="checkbox" id="showPostLabels" checked>
+                                <label class="form-check-label" for="showPostLabels">
+                                    Mostrar medidas de pilares (3D)
+                                </label>
+                            </div>
+                            <div class="mb-2">
+                                <small class="text-muted">
+                                    <strong>Configuración de inclinación:</strong><br>
+                                    • Viga inicial/final: Define el rango de vigas con inclinación completa<br>
+                                    • Vigas conectadas: Reciben 25% de inclinación automáticamente<br>
+                                    • En 3D: Click en vigas para seleccionar/deseleccionar
+                                </small>
+                            </div>
+                            <hr>
+                            <h6 class="mb-2">Crear estructura automática</h6>
+                            <div class="mb-2">
+                                <small class="text-muted">
+                                    <strong>Cálculo automático:</strong><br>
+                                    • Dimensiones basadas en la terraza (-5cm márgenes)<br>
+                                    • Estructura lo más cuadrada posible<br>
+                                    • Validación de espacio para vigas
+                                </small>
+                            </div>
+                            <div class="mb-2">
+                                <label class="form-label mb-0">Ancho estructura (cm) <small
+                                        class="text-muted">(calculado)</small></label>
+                                <input type="number" class="form-control form-control-sm" id="structWidth" readonly
+                                    value="0" min="50" step="10">
+                            </div>
+                            <div class="mb-2">
+                                <label class="form-label mb-0">Largo estructura (cm) <small
+                                        class="text-muted">(calculado)</small></label>
+                                <input type="number" class="form-control form-control-sm" id="structLength" readonly
+                                    value="0" min="50" step="10">
+                            </div>
+                            <div class="mb-2">
+                                <label class="form-label mb-0">Número de vigas</label>
+                                <input type="number" class="form-control form-control-sm" id="numBeams" value="5"
+                                    min="2" max="20" step="1">
+                            </div>
+                            <div class="mb-2">
+                                <label class="form-label mb-0">Separación entre vigas (cm)</label>
+                                <input type="number" class="form-control form-control-sm" id="beamSpacing" value="100"
+                                    min="20" step="10">
+                            </div>
+                            <button class="btn btn-sm btn-outline-primary w-100 mb-2" id="btnCreateStructure">
+                                <i class="bi bi-plus-circle"></i> Crear estructura
+                            </button>
+                            <hr>
+                            <p class="text-muted mb-1">
+                                Vigas: <span id="beamCount">0</span>
+                            </p>
+                            <p class="text-muted mb-1">
+                                m lineales: <span id="beamMeters">0.00</span>
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Paneles -->
+                <div class="accordion-item">
+                    <h2 class="accordion-header">
+                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
+                            data-bs-target="#colPanels">
+                            <i class="bi bi-grid-3x3 me-2"></i> Paneles Solares
+                        </button>
+                    </h2>
+                    <div id="colPanels" class="accordion-collapse collapse">
+                        <div class="accordion-body small">
+                            <div class="mb-2">
+                                <label class="form-label mb-0">Ancho panel (cm)</label>
+                                <input type="number" class="form-control form-control-sm" id="panelWidth" value="114"
+                                    min="10" step="0.1">
+                            </div>
+                            <div class="mb-2">
+                                <label class="form-label mb-0">Alto panel (cm)</label>
+                                <input type="number" class="form-control form-control-sm" id="panelHeight" value="228"
+                                    min="10" step="0.1">
+                            </div>
+                            <div class="mb-2">
+                                <label class="form-label mb-0">Inclinación (°)</label>
+                                <input type="range" class="form-range" id="panelInclination" min="0" max="45" value="0"
+                                    step="1">
+                                <span id="inclinationValue">0°</span>
+                            </div>
+                            <div class="mb-2">
+                                <label class="form-label mb-0">Potencia (W)</label>
+                                <input type="number" class="form-control form-control-sm" id="panelPower" value="610"
+                                    min="100" step="10">
+                            </div>
+                            <hr>
+                            <p class="text-muted mb-1">
+                                Paneles colocados: <span id="panelCount">0</span>
+                            </p>
+                            <p class="text-muted mb-1">
+                                Potencia total: <span id="totalPower">0</span> W
+                            </p>
+                            <p class="text-muted mb-1">
+                                Sombra entre filas: <span id="shadowGap">0</span> cm
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Textos -->
+                <div class="accordion-item">
+                    <h2 class="accordion-header">
+                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
+                            data-bs-target="#colTexts">
+                            <i class="bi bi-fonts me-2"></i> Textos
+                        </button>
+                    </h2>
+                    <div id="colTexts" class="accordion-collapse collapse">
+                        <div class="accordion-body small">
+                            <div class="mb-2">
+                                <label class="form-label mb-0">Texto</label>
+                                <input type="text" class="form-control form-control-sm" id="textContent" value="Texto">
+                            </div>
+                            <div class="mb-2">
+                                <label class="form-label mb-0">Tamaño (px)</label>
+                                <input type="number" class="form-control form-control-sm" id="textSize" value="14"
+                                    min="6" step="1">
+                            </div>
+                            <small class="text-muted">Selecciona la herramienta de texto y haz clic en el plano.</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Canvas 2D -->
+        <div class="editor-canvas-wrapper flex-grow-1 position-relative" id="canvasWrapper">
+            <canvas id="canvas2D"></canvas>
+            <!-- Regla horizontal -->
+            <canvas id="rulerH" class="ruler ruler-h"></canvas>
+            <!-- Regla vertical -->
+            <canvas id="rulerV" class="ruler ruler-v"></canvas>
+            <div class="selection-inspector d-none" id="selectionInspector">
+                <div class="selection-inspector__title">Seleccion</div>
+                <div class="selection-inspector__row">
+                    <label for="selectionPosX" class="form-label mb-0">X</label>
+                    <input type="number" class="form-control form-control-sm" id="selectionPosX" step="0.1">
+                    <span>cm</span>
+                </div>
+                <div class="selection-inspector__row">
+                    <label for="selectionPosY" class="form-label mb-0">Y</label>
+                    <input type="number" class="form-control form-control-sm" id="selectionPosY" step="0.1">
+                    <span>cm</span>
+                </div>
+                <button class="btn btn-sm btn-outline-warning w-100" id="selectionApply">Aplicar</button>
+                <div class="selection-inspector__hint mt-2">Flechas: mover (Shift = 10 cm)</div>
+            </div>
+        </div>
+
+        <!-- Visor 3D (oculto por defecto) -->
+        <div class="editor-3d-wrapper d-none" id="viewer3DWrapper">
+            <canvas id="canvas3D"></canvas>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<!-- Three.js local -->
+<script src="{{ url_for('static', filename='lib/three.min.js') }}"></script>
+<script>
+    // Simple OrbitControls implementation
+    THREE.OrbitControls = function (object, domElement) {
+        this.object = object;
+        this.domElement = domElement || document;
+
+        this.enabled = true;
+        this.enableDamping = true;
+        this.dampingFactor = 0.05;
+
+        this.rotateSpeed = 1.0;
+        this.zoomSpeed = 1.2;
+        this.panSpeed = 0.8;
+
+        this.minDistance = 0;
+        this.maxDistance = Infinity;
+
+        this.target = new THREE.Vector3();
+
+        this.update = function () {
+            // Simple damping
+            if (this.enableDamping) {
+                this.object.position.lerp(this.targetPosition || this.object.position, this.dampingFactor);
+            }
+            return true;
+        };
+
+        // Basic mouse controls
+        const scope = this;
+        let isMouseDown = false;
+        let mouseX = 0, mouseY = 0;
+
+        function onMouseDown(event) {
+            if (!scope.enabled) return;
+            isMouseDown = true;
+            mouseX = event.clientX;
+            mouseY = event.clientY;
+        }
+
+        function onMouseMove(event) {
+            if (!isMouseDown || !scope.enabled) return;
+            const deltaX = event.clientX - mouseX;
+            const deltaY = event.clientY - mouseY;
+
+            // Simple rotation
+            scope.object.rotation.y -= deltaX * 0.01;
+            scope.object.rotation.x -= deltaY * 0.01;
+
+            mouseX = event.clientX;
+            mouseY = event.clientY;
+        }
+
+        function onMouseUp() {
+            isMouseDown = false;
+        }
+
+        function onWheel(event) {
+            if (!scope.enabled) return;
+            event.preventDefault();
+            const zoomSpeed = 0.1;
+            const distance = scope.object.position.distanceTo(scope.target);
+            const newDistance = distance * (1 + event.deltaY * zoomSpeed * 0.001);
+            scope.object.position.normalize().multiplyScalar(newDistance);
+        }
+
+        this.domElement.addEventListener('mousedown', onMouseDown);
+        this.domElement.addEventListener('mousemove', onMouseMove);
+        this.domElement.addEventListener('mouseup', onMouseUp);
+        this.domElement.addEventListener('wheel', onWheel);
+    };
+</script>
+<!-- Editor JS -->
+<script src="{{ url_for('static', filename='js/editor2d.js') }}"></script>
+<script src="{{ url_for('static', filename='js/editor3d.js') }}"></script>
+<script src="{{ url_for('static', filename='js/editor_main.js') }}"></script>
+{% endblock %}

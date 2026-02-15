@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+
+{% block title %}Mis Proyectos — AEP Solar Planner{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2><i class="bi bi-folder2-open text-warning"></i> Mis Proyectos</h2>
+        <a href="{{ url_for('projects.new_project') }}" class="btn btn-warning">
+            <i class="bi bi-plus-circle"></i> Nuevo Proyecto
+        </a>
+    </div>
+
+    {% if projects.items %}
+    <div class="row g-4">
+        {% for project in projects.items %}
+        <div class="col-md-4">
+            <div class="card h-100 shadow-sm border-0">
+                <div class="card-body">
+                    <h5 class="card-title">
+                        <i class="bi bi-sun text-warning"></i> {{ project.name }}
+                    </h5>
+                    <p class="card-text text-muted small">
+                        {{ project.description or 'Sin descripción' }}
+                    </p>
+                    <p class="card-text">
+                        <small class="text-muted">
+                            Actualizado: {{ project.updated_at.strftime('%d/%m/%Y %H:%M') }}
+                        </small>
+                    </p>
+                </div>
+                <div class="card-footer bg-transparent border-0 d-flex gap-2">
+                    <a href="{{ url_for('projects.editor', project_id=project.id) }}"
+                        class="btn btn-sm btn-outline-warning flex-grow-1">
+                        <i class="bi bi-pencil-square"></i> Editar
+                    </a>
+                    <form action="{{ url_for('projects.delete_project', project_id=project.id) }}" method="POST"
+                        class="d-inline" onsubmit="return confirm('¿Eliminar este proyecto?');">
+                        <button type="submit" class="btn btn-sm btn-outline-danger">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Paginación -->
+    {% if projects.pages > 1 %}
+    <nav class="mt-4">
+        <ul class="pagination justify-content-center">
+            {% if projects.has_prev %}
+            <li class="page-item">
+                <a class="page-link" href="?page={{ projects.prev_num }}">Anterior</a>
+            </li>
+            {% endif %}
+            {% for p in projects.iter_pages() %}
+            {% if p %}
+            <li class="page-item {{ 'active' if p == projects.page }}">
+                <a class="page-link" href="?page={{ p }}">{{ p }}</a>
+            </li>
+            {% else %}
+            <li class="page-item disabled"><span class="page-link">…</span></li>
+            {% endif %}
+            {% endfor %}
+            {% if projects.has_next %}
+            <li class="page-item">
+                <a class="page-link" href="?page={{ projects.next_num }}">Siguiente</a>
+            </li>
+            {% endif %}
+        </ul>
+    </nav>
+    {% endif %}
+
+    {% else %}
+    <div class="text-center py-5">
+        <i class="bi bi-inbox display-1 text-muted"></i>
+        <p class="lead text-muted mt-3">Aún no tienes proyectos.</p>
+        <a href="{{ url_for('projects.new_project') }}" class="btn btn-warning btn-lg">
+            <i class="bi bi-plus-circle"></i> Crear mi primer proyecto
+        </a>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
