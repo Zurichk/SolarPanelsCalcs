@@ -347,10 +347,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    document.getElementById('btnRotateTerrace90')?.addEventListener('click', () => {
-        editor2D.rotateTerrace90();
-    });
-
     document.getElementById('btnConfirmTerrace')?.addEventListener('click', () => {
         editor2D.confirmTerrace();
     });
@@ -380,6 +376,10 @@ document.addEventListener('DOMContentLoaded', () => {
             editor2D.panelConfig[map[key]] = parseFloat(e.target.value);
             sendDataToViewer3D();
         });
+    });
+
+    document.getElementById('btnRotateSelectedPanel90')?.addEventListener('click', () => {
+        editor2D.rotateSelectedPanel90();
     });
 
     // ──────────────────────────────────────────

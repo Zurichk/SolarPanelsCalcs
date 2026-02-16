@@ -350,42 +350,23 @@ class AEPEditor2D {
     }
 
     /**
-     * Rota la terraza 90 grados en sentido horario alrededor de su centro.
+     * Rota el panel seleccionado 90 grados (intercambia ancho y alto).
      */
-    rotateTerrace90() {
-        if (this.terraceVertices.length < 3) {
-            showAlert('No hay terraza para rotar', 'warning');
+    rotateSelectedPanel90() {
+        const selectedPanel = this.selectedElements.find(sel => sel.type === 'panel');
+        if (!selectedPanel) {
+            showAlert('Selecciona un panel para rotar', 'warning');
             return;
         }
 
-        // Calcular centro de la terraza
-        let sumX = 0, sumY = 0;
-        for (const v of this.terraceVertices) {
-            sumX += v.x;
-            sumY += v.y;
-        }
-        const cx = sumX / this.terraceVertices.length;
-        const cy = sumY / this.terraceVertices.length;
-
-        // Rotar cada vértice 90° clockwise
-        for (const v of this.terraceVertices) {
-            const dx = v.x - cx;
-            const dy = v.y - cy;
-            v.x = cx + dy;
-            v.y = cy - dx;
-        }
-
-        // Recalcular bounds
-        const bounds = this.getTerraceBounds();
-        if (bounds) {
-            this.constructionBounds = this._calculateConstructionBounds(bounds, 10);
-            this.panelBounds = this._calculatePanelBounds(this.constructionBounds, 40);
-        }
+        const panel = this.panels[selectedPanel.index];
+        // Intercambiar ancho y alto
+        [panel.w, panel.h] = [panel.h, panel.w];
 
         this.render();
         this._updateUI();
         this.onUpdate && this.onUpdate();
-        showAlert('Terraza rotada 90°', 'success');
+        showAlert('Panel rotado 90°', 'success');
     }
 
     _onWheel(e) {
