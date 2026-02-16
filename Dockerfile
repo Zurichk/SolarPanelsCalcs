@@ -38,7 +38,6 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
 
 # Ejecutar con Gunicorn
 CMD ["gunicorn", \
-    "--static-map", "/static:/app/src/static", \
     "--bind", "0.0.0.0:5031", \
     "--workers", "2", \
     "--threads", "4", \

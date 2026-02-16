@@ -355,8 +355,8 @@
 {% endblock %}
 
 {% block extra_js %}
-<!-- Three.js local -->
-<script src="{{ url_for('static', filename='lib/three.min.js') }}"></script>
+<!-- Three.js from CDN -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>
     // Simple OrbitControls implementation
     THREE.OrbitControls = function (object, domElement) {
