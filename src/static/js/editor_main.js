@@ -347,6 +347,10 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
+    document.getElementById('btnRotateTerrace90')?.addEventListener('click', () => {
+        editor2D.rotateTerrace90();
+    });
+
     document.getElementById('btnConfirmTerrace')?.addEventListener('click', () => {
         editor2D.confirmTerrace();
     });
