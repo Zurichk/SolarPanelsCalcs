@@ -808,6 +808,39 @@ class AEPEditor3D {
             mesh.receiveShadow = true;
             mesh.userData.editorObject = true;
             this.scene.add(mesh);
+
+            // Agregar líneas de celdas sobre el panel
+            const cellCols = 6;
+            const cellRows = 24;
+            const lineMaterial = new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.3 });
+
+            // Líneas verticales
+            for (let c = 1; c < cellCols; c++) {
+                const x = -p.w / 2 + (p.w / cellCols) * c;
+                const points = [
+                    new THREE.Vector3(x, panelThickness / 2 + 0.1, -realH / 2),
+                    new THREE.Vector3(x, panelThickness / 2 + 0.1, realH / 2)
+                ];
+                const geometry = new THREE.BufferGeometry().setFromPoints(points);
+                const line = new THREE.Line(geometry, lineMaterial);
+                line.position.set(centerX, centerY, centerZ);
+                line.rotation.x = -signedInclRad;
+                this.scene.add(line);
+            }
+
+            // Líneas horizontales
+            for (let r = 1; r < cellRows; r++) {
+                const z = -realH / 2 + (realH / cellRows) * r;
+                const points = [
+                    new THREE.Vector3(-p.w / 2, panelThickness / 2 + 0.1, z),
+                    new THREE.Vector3(p.w / 2, panelThickness / 2 + 0.1, z)
+                ];
+                const geometry = new THREE.BufferGeometry().setFromPoints(points);
+                const line = new THREE.Line(geometry, lineMaterial);
+                line.position.set(centerX, centerY, centerZ);
+                line.rotation.x = -signedInclRad;
+                this.scene.add(line);
+            }
         }
     }
 
