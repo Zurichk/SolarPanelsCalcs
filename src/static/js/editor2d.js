@@ -62,8 +62,8 @@ class AEPEditor2D {
 
         // Configuración de paneles
         this.panelConfig = {
-            width: 114,
-            height: 228,
+            width: 227.8,
+            height: 113.4,
             inclination: 0,
             power: 610,
         };
@@ -1628,7 +1628,7 @@ class AEPEditor2D {
 
             // Celdas del panel (efecto visual)
             const cellCols = 6;
-            const cellRows = 10;
+            const cellRows = 24;
             ctx.strokeStyle = 'rgba(255,255,255,0.3)';
             ctx.lineWidth = 0.5;
             for (let c = 1; c < cellCols; c++) {
